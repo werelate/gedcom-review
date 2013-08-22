@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<!-- printing\myComponents\FormPrintView.mxml -->
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml"
+    backgroundColor="#FFFFFF"
+    paddingTop="50" paddingBottom="50" paddingLeft="50" paddingRight="50">
+
+    <mx:Script>
+        <![CDATA[
+            import mx.core.*
+
+            import org.werelate.model.ModelUtils;
+
+            [Bindable]
+            [Autowire]
+            public var mu : ModelUtils;
+            private function getWarningPersonFamilyName(warn:XML, column:DataGridColumn):String {
+               return mu.getPersonFamilyName(mu.getWarningPersonFamily(warn));
+            }
+
+            private function getWarningLevel(warn:XML, column:DataGridColumn):String {
+               return mu.getWarningLevelDesc(warn);
+            }
+
+            // Declare and initialize the variables used in the component.
+            // The application sets the actual prodTotal value.
+            [Bindable]
+            public var pageNumber:Number = 1;
+        ]]>
+    </mx:Script>
+
+    <!-- The template for the printed page,
+        with the contents for all pages. -->
+    <mx:VBox width="80%" horizontalAlign="left">
+        <mx:Label text="Page {pageNumber}"/>
+    </mx:VBox>
+
+    <!-- The sizeToPage property is true by default, so the last
+        page has only as many grid rows as are needed for the data. -->
+    <mx:PrintDataGrid id="myDataGrid" width="100%" height="100%" wordWrap="true" fontSize="10" paddingBottom="0">
+    <!-- Specify the columns to ensure that their order is correct. -->
+        <mx:columns>
+           <mx:DataGridColumn headerText="Level" labelFunction="getWarningLevel" fontSize="9" width="50"/>
+           <mx:DataGridColumn headerText="Person/Family" labelFunction="getWarningPersonFamilyName" wordWrap="true" fontSize="9"/>
+           <mx:DataGridColumn headerText="Description" dataField="@warning" wordWrap="true" fontSize="9"/>
+        </mx:columns>
+    </mx:PrintDataGrid>
+
+</mx:VBox>

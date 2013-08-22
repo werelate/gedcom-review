@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<BeanLoader xmlns="org.swizframework.util.*" 
+				xmlns:mx="http://www.adobe.com/2006/mxml"
+				xmlns:controllers="org.werelate.controllers.*"
+				xmlns:model="org.werelate.model.*"
+				xmlns:services="org.werelate.services.*"
+				>
+				
+	<controllers:MainController id="mainController"/>		 
+	<controllers:ModelLoader id="modelLoader"/>		 
+	<controllers:MatchAllController id="matchAllController"/>	
+	<controllers:IncludeExclude id="includeExclude"/>	 
+	<controllers:TipAlertController id="tipAlertController"/>	 
+	<controllers:UnlinkController id="unlinkController"/>	 
+	<controllers:WLHController id="wlhController"/>	 
+	<model:Model id="model"/>
+	<model:ModelUtils id="modelUtils"/>
+	<services:WeRelateService id="werelateService"/>
+	<services:SharedObjectService id="sharedObjectService"/>
+	
+</BeanLoader>

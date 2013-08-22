@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="vertical" title="Tip" 
+	horizontalScrollPolicy="off" verticalScrollPolicy="off"	
+	showCloseButton="true"
+	close="ok(false);"	
+	defaultButton="{okButton}"
+	creationComplete="onCreationComplete()"
+	width="100%" height="100%"
+>
+	
+<mx:Script>
+	<![CDATA[
+		import mx.core.Application;
+		import mx.managers.PopUpManager;
+		import org.werelate.controllers.TipAlertController;
+
+		[Autowire]
+		public var tac:TipAlertController;
+		
+		private var gedcomId:int;
+		private var tipId:String;
+		[Bindable]
+		private var tipMessage:String;
+		
+		public function init(gedcomId:int, tipId:String, tipMessage:String):void {
+			this.gedcomId = gedcomId;
+			this.tipId = tipId;
+			this.tipMessage = tipMessage;
+		}
+		
+		private function onCreationComplete():void {
+			okButton.setFocus();
+		} 
+		
+		public function show():void {
+			PopUpManager.addPopUp(this, DisplayObject(Application.application), false);
+			PopUpManager.centerPopUp(this);
+		}
+		
+		private function ok(noShowSelected:Boolean):void {
+			hide();			
+			tac.ok(gedcomId, tipId, noShowSelected)			
+		}
+		
+		public function hide():void {
+			PopUpManager.removePopUp(this);			
+		}
+	]]>
+</mx:Script>	
+
+<mx:Text id="tipMsg" htmlText="{tipMessage}" width="650" fontSize="12"/>
+<mx:HBox paddingLeft="10" paddingRight="10" paddingTop="10" paddingBottom="5"	
+			horizontalAlign="center" width="100%">
+	<mx:CheckBox id="noShow" label="Don't show again"/>
+	<mx:Spacer width="100%"/>
+	<mx:Button id="okButton" label="Ok" click="ok(noShow.selected)"/>
+</mx:HBox>
+</mx:TitleWindow>

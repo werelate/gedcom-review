@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox width="100%" horizontalAlign="center" xmlns:mx="http://www.adobe.com/2006/mxml">
+<mx:Script>
+	<![CDATA[
+		import org.werelate.controllers.MainController;
+		import org.werelate.model.Model;
+		
+		[Bindable]
+		[Autowire(bean="model")]
+		public var model : Model;
+		
+		[Autowire(bean="mainController")]
+		public var mc : MainController;
+	]]>
+
+</mx:Script>
+	<mx:CheckBox click="mc.toggleExclude(data as XML)"
+					selected="{data.@exclude == 'true'}" enabled="{model.isUpdatable &amp;&amp; model.isAdmin || (data.@living != 'true' &amp;&amp; data.@beforeCutoff != 'true')}"/>
+</mx:HBox>

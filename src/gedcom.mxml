@@ -1,0 +1,1112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml"
+					layout="vertical" 
+					paddingBottom="0" paddingLeft="0" paddingRight="0" paddingTop="0"
+					verticalGap="-1" backgroundColor="#90b0ff"
+					historyManagementEnabled="false"
+					preinitialize="onPreInit()"
+					creationComplete="onCreationComplete()"
+					>
+<mx:Metadata>
+[ResourceBundle("messages")]
+</mx:Metadata>
+<!-- <mx:Style source="skin/vistaremix.css"/> -->
+<mx:Style source="skin/styles.css" />
+
+	<mx:Script>
+	<![CDATA[
+		import com.gskinner.StringUtils;
+		import mx.events.ResizeEvent;
+		import mx.events.ItemClickEvent;
+		import mx.collections.ArrayCollection;
+		import mx.controls.Alert;
+		import mx.core.Container;
+		import mx.managers.HistoryManager;
+		import org.werelate.model.ModelUtils;
+		import mx.controls.dataGridClasses.DataGridColumn;
+		import mx.events.DynamicEvent;
+		import org.werelate.shared.Utils;
+		import mx.logging.ILogger;
+		import mx.logging.targets.LineFormattedTarget;
+		import xpanel.XPanelTarget;
+		import mx.logging.Log;
+		import mx.logging.LogEventLevel;
+		import mx.logging.ILoggingTarget;
+		import org.werelate.ReleaseBeans;
+		import org.werelate.TestBeans;
+		import org.werelate.model.Model;
+		import org.werelate.controllers.MainController;
+		import org.werelate.Beans;
+		import org.swizframework.Swiz;
+		
+		[Bindable]
+		[Autowire]
+		public var model : Model;
+		[Bindable]
+		[Autowire]
+		public var mu : ModelUtils;
+
+		[Bindable]
+		private var TABS:ArrayCollection = new ArrayCollection([
+			{label:"1. Overview", component:ModelUtils.OVERVIEW},
+			{label:"2. People",   component:ModelUtils.PEOPLE},
+			{label:"3. Families", component:ModelUtils.FAMILIES},
+			{label:"4. Warnings", component:ModelUtils.WARNINGS},
+			{label:"5. Places",   component:ModelUtils.PLACES},
+			{label:"6. Sources",  component:ModelUtils.SOURCES},
+			{label:"7. Family Matches", component:ModelUtils.MATCHES},
+//			{label:"8. Updates",  component:ModelUtils.UPDATES},
+			{label:"8. Import",   component:ModelUtils.IMPORT},
+			]);
+			
+		private var peopleRollOverIndex:int = 0;
+		private var familiesRollOverIndex:int = 0;
+		private var sourcesRollOverIndex:int = 0;
+		private var placesRollOverIndex:int = 0;
+		private var warningsRollOverIndex:int = 0;
+		private var matchesRollOverIndex:int = 0;
+		private var updatesRollOverIndex:int = 0;
+		private var initialData:XML = null;
+		private var resized:Boolean = false;
+		
+		private static const headerFontSize:int = 16;
+		private static const statsLabelWidth:int = 140;
+		private static const statsNumberWidth:int = 140;
+		private static const statsCommentWidth:int = 400;
+		
+		private static const log:ILogger = Log.getLogger("org.werelate");
+		
+		private var _mc : MainController;
+		public function get mc():MainController {
+			return _mc;
+		}
+		[Autowire(bean="mainController")]
+		public function set mc(mc:MainController):void {
+			_mc = mc;
+			mc.init();
+		}
+
+		//
+		// initialization functions
+		//
+		
+		private function onPreInit() : void {
+			var versionBeans:Class;
+         
+			CONFIG::test {
+				versionBeans = TestBeans;
+				
+				var testTarget:LineFormattedTarget = new XPanelTarget();
+	         testTarget.level = LogEventLevel.ALL;
+	         testTarget.includeCategory = true;
+//	         testTarget.filters=["org.werelate.*"];
+	         Log.addTarget(testTarget);
+			}
+			CONFIG::release {
+				versionBeans = ReleaseBeans;
+			}
+		 
+			Swiz.loadBeans([versionBeans, Beans]);
+		}
+		
+		private function onCreationComplete(): void {
+			Alert.buttonWidth=70; // we use 12-pt font
+			this.addEventListener(ResizeEvent.RESIZE, onWindowResize);
+		}
+		
+		private function onWindowResize(event:ResizeEvent): void {
+			resized = true;
+			if (mc) mc.windowResize();
+		}
+		
+		private function createContextMenu(menuSelectFunction: Function, 
+														suffix: String,
+														fetchGedcomFunction: Function = null,
+														fetchWeRelateFunction: Function = null,
+														excludeFunction: Function = null,
+														unlinkFunction: Function = null,
+														markUnreadFunction: Function = null,
+														makeRootFunction: Function = null,
+														findAddFunction: Function = null,
+														findRefsFunction: Function = null
+													  ):ContextMenu {
+			var cmItems:Array = new Array();
+			var cmItem:ContextMenuItem;
+			if (makeRootFunction != null) {
+				cmItem = new ContextMenuItem(MainController.MAKE_ROOT);
+				cmItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, makeRootFunction);
+				cmItems.push(cmItem);
+			}
+			if (findAddFunction != null) {
+				cmItem = new ContextMenuItem(MainController.FIND_ADD+" "+suffix);
+				cmItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, findAddFunction);
+				cmItems.push(cmItem);
+			}
+			if (fetchGedcomFunction != null) {
+				cmItem = new ContextMenuItem(MainController.FETCH_GEDCOM+" "+suffix);
+				cmItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, fetchGedcomFunction);
+				cmItems.push(cmItem);
+			}
+			if (fetchWeRelateFunction != null) {
+				cmItem = new ContextMenuItem(MainController.FETCH_WERELATE+" "+suffix);
+				cmItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, fetchWeRelateFunction);
+				cmItems.push(cmItem);
+			}
+			if (unlinkFunction != null) {
+				cmItem = new ContextMenuItem(MainController.UNLINK+" "+suffix);
+				cmItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, unlinkFunction);
+				cmItems.push(cmItem);
+			}
+			if (excludeFunction != null) {
+				cmItem = new ContextMenuItem(MainController.EXCLUDE+" "+suffix);
+				cmItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, excludeFunction);
+				cmItems.push(cmItem);
+			}
+			if (markUnreadFunction != null) {
+				cmItem = new ContextMenuItem(MainController.MARK_UNREAD);
+				cmItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, markUnreadFunction);
+				cmItems.push(cmItem);
+			}
+			if (findRefsFunction != null) {
+				cmItem = new ContextMenuItem(MainController.FIND_REFS+" "+suffix);
+				cmItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, findRefsFunction);
+				cmItems.push(cmItem);
+			}
+			var cm:ContextMenu = new ContextMenu();
+			cm.hideBuiltInItems();
+			cm.customItems = cmItems;
+			cm.addEventListener(ContextMenuEvent.MENU_SELECT, menuSelectFunction);
+			return cm;
+		}
+		 
+		private function peopleSelectContextMenu(event:ContextMenuEvent):void {
+			peopleDataGrid.selectedIndex = peopleRollOverIndex;
+			mc.selectedItemUpdated(peopleDataGrid.selectedItem as XML, ModelUtils.PEOPLE);
+			mc.selectContextMenu(event.target as ContextMenu, peopleDataGrid.selectedItem as XML, ModelUtils.PEOPLE);
+		}
+		private function peopleFetchWeRelate(event:ContextMenuEvent):void {
+			mc.fetchWeRelateItem(peopleDataGrid.selectedItem as XML);
+		}
+		private function peopleUnlink(event:ContextMenuEvent):void {
+			mc.unlinkItem(peopleDataGrid.selectedItem as XML);
+			mc.fetchItem(peopleDataGrid.selectedItem as XML, ModelUtils.PEOPLE);
+		}
+//		private function peopleMakeRoot(event:ContextMenuEvent):void {
+//			mc.makeRoot(peopleDataGrid.selectedItem as XML);
+//			mc.fetchItem(peopleDataGrid.selectedItem as XML, ModelUtils.PEOPLE);
+//		}
+		private function onPeopleDataGridCreationComplete(event:Event): void {
+			if (initialData) {
+				peopleDataGrid.selectedItem = initialData;
+				reposition(peopleDataGrid);
+				initialData = null;
+			}
+			peopleDataGrid.contextMenu = createContextMenu(peopleSelectContextMenu, "person", 
+				null, peopleFetchWeRelate, null, peopleUnlink, null, null);
+		}
+		
+		private function familiesSelectContextMenu(event:ContextMenuEvent):void {
+			familiesDataGrid.selectedIndex = familiesRollOverIndex;
+			mc.selectedItemUpdated(familiesDataGrid.selectedItem as XML, ModelUtils.FAMILIES);
+			mc.selectContextMenu(event.target as ContextMenu, familiesDataGrid.selectedItem as XML, ModelUtils.FAMILIES);
+		}	
+		private function familiesFetchWeRelate(event:ContextMenuEvent):void {
+			mc.fetchWeRelateItem(familiesDataGrid.selectedItem as XML);
+		}
+		private function familiesUnlink(event:ContextMenuEvent):void {
+			mc.unlinkItem(familiesDataGrid.selectedItem as XML);
+			mc.fetchItem(familiesDataGrid.selectedItem as XML, ModelUtils.FAMILIES);
+		}
+		private function onFamiliesDataGridCreationComplete(event:Event): void {
+			if (initialData) {
+				familiesDataGrid.selectedItem = initialData;
+				reposition(familiesDataGrid);
+				initialData = null;
+			}
+			familiesDataGrid.contextMenu = createContextMenu(familiesSelectContextMenu, "family",
+				null, familiesFetchWeRelate, null, familiesUnlink);			
+		}
+			
+		private function warningsSelectContextMenu(event:ContextMenuEvent):void {
+			warningsDataGrid.selectedIndex = warningsRollOverIndex;
+			mc.selectedItemUpdated(warningsDataGrid.selectedItem as XML, ModelUtils.WARNINGS);
+			mc.selectContextMenu(event.target as ContextMenu, warningsDataGrid.selectedItem as XML, ModelUtils.WARNINGS);
+		}	
+//		private function warningsExclude(event:ContextMenuEvent):void {
+//			mc.toggleExclude(warningsDataGrid.selectedItem as XML);
+//		}
+		private function warningsMarkUnread(event:ContextMenuEvent):void {
+			mc.markUnread(warningsDataGrid.selectedItem as XML, ModelUtils.WARNINGS);
+		}	
+		private function onWarningsDataGridCreationComplete(event:Event): void {
+			if (initialData) {
+				warningsDataGrid.selectedItem = initialData;
+				reposition(warningsDataGrid);
+				initialData = null;
+			}
+			warningsDataGrid.contextMenu = createContextMenu(warningsSelectContextMenu, "page", 
+				null, null, null, null, warningsMarkUnread);
+		}
+		
+		private function placesSelectContextMenu(event:ContextMenuEvent):void {
+			placesDataGrid.selectedIndex = placesRollOverIndex;
+			mc.selectedItemUpdated(placesDataGrid.selectedItem as XML, ModelUtils.PLACES);
+			mc.selectContextMenu(event.target as ContextMenu, placesDataGrid.selectedItem as XML, ModelUtils.PLACES);
+		}	
+		private function placesUnlink(event:ContextMenuEvent):void {
+			mc.unlinkItem(placesDataGrid.selectedItem as XML);
+			mc.fetchItem(placesDataGrid.selectedItem as XML, ModelUtils.PLACES);
+		}
+		private function placesMarkUnread(event:ContextMenuEvent):void {
+			mc.markUnread(placesDataGrid.selectedItem as XML, ModelUtils.PLACES);
+		}
+		private function placesFindAdd(event:ContextMenuEvent):void {
+			mc.findAddItem(placesDataGrid.selectedItem as XML, ModelUtils.PLACES);
+		}	
+		private function placesFindRefs(event:ContextMenuEvent):void {
+			mc.findRefs(placesDataGrid.selectedItem as XML);
+		}	
+		private function onPlacesDataGridCreationComplete(event:Event): void {
+			if (initialData) {
+				placesDataGrid.selectedItem = initialData;
+				reposition(placesDataGrid);
+				initialData = null;
+			}
+			placesDataGrid.contextMenu = createContextMenu(placesSelectContextMenu, "place", 
+				null, null, null, placesUnlink, placesMarkUnread, null, placesFindAdd, placesFindRefs);			
+		}
+		
+		private function sourcesSelectContextMenu(event:ContextMenuEvent):void {
+			sourcesDataGrid.selectedIndex = sourcesRollOverIndex;
+			mc.selectedItemUpdated(sourcesDataGrid.selectedItem as XML, ModelUtils.SOURCES);
+			mc.selectContextMenu(event.target as ContextMenu, sourcesDataGrid.selectedItem as XML, ModelUtils.SOURCES);
+		}	
+		private function sourcesFetchGedcom(event:ContextMenuEvent):void {
+			mc.fetchGedcomItem(sourcesDataGrid.selectedItem as XML);
+		}
+		private function sourcesUnlink(event:ContextMenuEvent):void {
+			mc.unlinkItem(sourcesDataGrid.selectedItem as XML);
+			mc.fetchItem(sourcesDataGrid.selectedItem as XML, ModelUtils.SOURCES);
+		}	
+		private function sourcesMarkUnread(event:ContextMenuEvent):void {
+			mc.markUnread(sourcesDataGrid.selectedItem as XML, ModelUtils.SOURCES);
+		}	
+		private function sourcesFindAdd(event:ContextMenuEvent):void {
+			mc.findAddItem(sourcesDataGrid.selectedItem as XML, ModelUtils.SOURCES);
+		}	
+		private function sourcesFindRefs(event:ContextMenuEvent):void {
+			mc.findRefs(sourcesDataGrid.selectedItem as XML);
+		}	
+		private function onSourcesDataGridCreationComplete(event:Event): void {
+			if (initialData) {
+				sourcesDataGrid.selectedItem = initialData;
+				reposition(sourcesDataGrid);
+				initialData = null;
+			}
+			sourcesDataGrid.contextMenu = createContextMenu(sourcesSelectContextMenu, "source", 
+				sourcesFetchGedcom, null, null, sourcesUnlink, sourcesMarkUnread, null, sourcesFindAdd, sourcesFindRefs);
+		}
+		
+		private function matchesSelectContextMenu(event:ContextMenuEvent):void {
+			matchesDataGrid.selectedIndex = matchesRollOverIndex;
+			mc.selectedItemUpdated(matchesDataGrid.selectedItem as XML, ModelUtils.MATCHES);
+			mc.selectContextMenu(event.target as ContextMenu, matchesDataGrid.selectedItem as XML, ModelUtils.MATCHES);
+		}	
+		private function matchesFetchGedcom(event:ContextMenuEvent):void {
+			mc.fetchGedcomItem(matchesDataGrid.selectedItem as XML);
+		}
+		private function matchesFetchWeRelate(event:ContextMenuEvent):void {
+			mc.fetchWeRelateItem(matchesDataGrid.selectedItem as XML);
+		}
+		private function matchesExclude(event:ContextMenuEvent):void {
+			mc.toggleExclude(matchesDataGrid.selectedItem as XML);
+		}
+		private function matchesUnlink(event:ContextMenuEvent):void {
+			mc.unlinkItem(matchesDataGrid.selectedItem as XML);
+			mc.fetchItem(matchesDataGrid.selectedItem as XML, ModelUtils.MATCHES);
+		}
+		private function matchesMarkUnread(event:ContextMenuEvent):void {
+			mc.markUnread(matchesDataGrid.selectedItem as XML, ModelUtils.MATCHES);
+		}	
+		private function onMatchesDataGridCreationComplete(event:Event): void {
+			if (initialData) {
+				matchesDataGrid.selectedItem = initialData;
+				reposition(matchesDataGrid);
+				initialData = null;
+			}
+			matchesDataGrid.contextMenu = createContextMenu(matchesSelectContextMenu, "family", 
+				matchesFetchGedcom, matchesFetchWeRelate, matchesExclude, matchesUnlink, matchesMarkUnread);			
+		}
+		
+//		private function updatesSelectContextMenu(event:ContextMenuEvent):void {
+//			updatesDataGrid.selectedIndex = updatesRollOverIndex;
+//			mc.selectedItemUpdated(updatesDataGrid.selectedItem as XML, ModelUtils.UPDATES);
+//			mc.selectContextMenu(event.target as ContextMenu, updatesDataGrid.selectedItem as XML, ModelUtils.UPDATES);
+//		}
+//		private function updatesFetchGedcom(event:ContextMenuEvent):void {
+//			mc.fetchGedcomItem(updatesDataGrid.selectedItem as XML);
+//		}
+//		private function updatesFetchWeRelate(event:ContextMenuEvent):void {
+//			mc.fetchWeRelateItem(updatesDataGrid.selectedItem as XML);
+//		}
+//		private function updatesUnlink(event:ContextMenuEvent):void {
+//			mc.unlinkItem(updatesDataGrid.selectedItem as XML);
+//			mc.fetchItem(updatesDataGrid.selectedItem as XML, ModelUtils.UPDATES);
+//		}
+//		private function updatesMarkUnread(event:ContextMenuEvent):void {
+//			mc.markUnread(updatesDataGrid.selectedItem as XML, ModelUtils.UPDATES);
+//		}
+//		private function onUpdatesDataGridCreationComplete(event:Event): void {
+//			if (initialData) {
+//				updatesDataGrid.selectedItem = initialData;
+//				reposition(updatesDataGrid);
+//				initialData = null;
+//			}
+//			updatesDataGrid.contextMenu = createContextMenu(updatesSelectContextMenu, "page",
+//				updatesFetchGedcom, updatesFetchWeRelate, null, updatesUnlink, updatesMarkUnread);
+//		}
+		
+		//
+		// display functions
+		//
+	
+		private function getPersonName(person:XML, column:DataGridColumn):String {
+			return mu.getPersonFullName(person);
+		}
+		
+		private function getPersonBirthDate(person:XML, column:DataGridColumn):String {
+			return person.@living == 'true' ? "living" : person.event_fact.(@type=='Birth').@date;
+		}
+		
+		private function getPersonDeathDate(person:XML, column:DataGridColumn):String {
+			return person.@living == 'true' ? "living" : person.event_fact.(@type=='Death').@date;
+		}
+		
+		private function getFamilyHusbandName(family:XML, column:DataGridColumn):String {
+			return mu.getFullName(family.husband[0]);
+		}
+		
+		private function getFamilyWifeName(family:XML, column:DataGridColumn):String {
+			return mu.getFullName(family.wife[0]);
+		}
+		
+		private function getFamilyMarriageDate(family:XML, column:DataGridColumn):String {
+			return family.@living == 'true' ? "living" : family.event_fact.(@type=='Marriage').@date;
+		}
+		
+		private function getPlaceName(place:XML, column:DataGridColumn):String {
+			return place.@text;
+		}
+		
+		private function getSourceName(source:XML, column:DataGridColumn):String {
+			return mu.getMySourceName(source, null);
+		}
+		
+		private function getSourceAuthor(source:XML, column:DataGridColumn):String {
+			return source.author.toString();
+		}
+
+		private function getWarningPersonFamilyName(warn:XML, column:DataGridColumn):String {
+         return mu.getPersonFamilyName(mu.getWarningPersonFamily(warn));
+		}
+
+      private function getWarningLevel(warn:XML, column:DataGridColumn):String {
+         return mu.getWarningLevelDesc(warn);
+      }
+		
+		private function getMatchDate(pf:XML, column:DataGridColumn):String {
+			if (pf.localName() == "person") {
+				return getPersonBirthDate(pf, column);
+			}
+			else {
+				return getFamilyMarriageDate(pf, column);
+			}
+		}
+		
+      private function getDistance(pf:XML, column:DataGridColumn):String {
+         if (pf.@distance == ModelUtils.NOT_CONNECTED) {
+            return "Not connected to root";
+         }
+         else {
+            return Math.ceil(pf.@distance / 2).toString();
+         }
+      }
+
+      private function getWarningDistance(warning:XML, column:DataGridColumn):String {
+         return getDistance(mu.getWarningPersonFamily(warning), column);
+      }
+
+		private function sortName(o1:Object, o2:Object):int {
+			if (o1.@stdName.toString() < o2.@stdName.toString()) return -1;
+			else if (o1.@stdName.toString() > o2.@stdName.toString()) return 1;
+			else if (o1.@id.toString() < o2.@id.toString()) return -1;
+			else if (o1.@id.toString() > o2.@id.toString()) return 1;
+			else return 0;
+		}
+      private function sortWarningName(o1:XML, o2:XML):int {
+         return sortName(mu.getWarningPersonFamily(o1), mu.getWarningPersonFamily(o2));
+      }
+		private function sortHusbandName(o1:Object, o2:Object):int {
+			if (o1.@stdHusbandName.toString() < o2.@stdHusbandName.toString()) return -1;
+			else if (o1.@stdHusbandName.toString() > o2.@stdHusbandName.toString()) return 1;
+			else return sortName(o1, o2);
+		} 
+		private function sortWifeName(o1:Object, o2:Object):int {
+			if (o1.@stdWifeName.toString() < o2.@stdWifeName.toString()) return -1;
+			else if (o1.@stdWifeName.toString() > o2.@stdWifeName.toString()) return 1;
+			else return sortName(o1, o2);
+		} 
+      private function sortDistance(o1:Object, o2:Object):int {
+         var n1:Number = Number(o1.@distance);
+         var n2:Number = Number(o2.@distance);
+         if (n1 < n2) return -1;
+         else if (n1 > n2) return 1;
+         else return sortName(o1, o2);
+      }
+      private function sortWarningDistance(o1:XML, o2:XML):int {
+         return sortDistance(mu.getWarningPersonFamily(o1), mu.getWarningPersonFamily(o2));
+      } 
+		private function sortDate(o1:Object, o2:Object):int {
+			if (o1.@stdDate.toString() < o2.@stdDate.toString()) return -1;
+			else if (o1.@stdDate.toString() > o2.@stdDate.toString()) return 1;
+			else return sortName(o1, o2);
+		} 
+		private function sortDeathDate(o1:Object, o2:Object):int {
+			if (o1.@stdDeathDate.toString() < o2.@stdDeathDate.toString()) return -1;
+			else if (o1.@stdDeathDate.toString() > o2.@stdDeathDate.toString()) return 1;
+			else return sortName(o1, o2);
+		} 
+		private function sortMatch(o1:Object, o2:Object):int {
+			if (o1.@stdMatch.toString() < o2.@stdMatch.toString()) return -1;
+			else if (o1.@stdMatch.toString() > o2.@stdMatch.toString()) return 1;
+			else return sortName(o1, o2);
+		} 
+      private function sortWarning(o1:XML, o2:XML):int {
+         if (o1.@warning.toString() < o2.@warning.toString()) return -1;
+         else if (o1.@warning.toString() > o2.@warning.toString()) return 1;
+         else return sortName(mu.getWarningPersonFamily(o1), mu.getWarningPersonFamily(o2));
+      }
+      private function sortWarningLevel(o1:XML, o2:XML):int {
+         if (o1.@warningLevel.toString() < o2.@warningLevel.toString()) return -1;
+         else if (o1.@warningLevel.toString() > o2.@warningLevel.toString()) return 1;
+         else return sortWarning(o1, o2);
+      }
+		private function sortAuthor(o1:Object, o2:Object):int {
+			if (o1.@stdAuthor.toString() < o2.@stdAuthor.toString()) return -1;
+			else if (o1.@stdAuthor.toString() > o2.@stdAuthor.toString()) return 1;
+			else return sortName(o1, o2);
+		} 
+		private function sortMerged(o1:Object, o2:Object):int {
+			if (o1.@merged == 'true' && o2.@merged != 'true') return -1;
+			else if (o1.@merged != 'true' && o2.@merged == 'true') return 1;
+			else return sortName(o1, o2);
+		}
+		private function sortEdited(o1:Object, o2:Object):int {
+			if (o1.@edited == 'true' && o2.@edited != 'true') return -1;
+			else if (o1.@edited != 'true' && o2.@edited == 'true') return 1;
+			else return sortName(o1, o2);
+		}
+		private function sortExclude(o1:Object, o2:Object):int {
+			if (o1.@exclude == 'true' && o2.@exclude != 'true') return -1;
+			else if (o1.@exclude != 'true' && o2.@exclude == 'true') return 1;
+			else return sortName(o1, o2);
+		}
+      private function sortLiving(o1:Object, o2:Object):int {
+         if (o1.@living == 'true' && o2.@living != 'true') return -1;
+         else if (o1.@living != 'true' && o2.@living == 'true') return 1;
+         else return sortName(o1, o2);
+      }
+      private function sortBeforeCutoff(o1:Object, o2:Object):int {
+         if (o1.@beforeCutoff == 'true' && o2.@beforeCutoff != 'true') return -1;
+         else if (o1.@beforeCutoff != 'true' && o2.@beforeCutoff == 'true') return 1;
+         else return sortName(o1, o2);
+      }
+
+		private function getMatch(pg:XML, column:DataGridColumn):String {
+			return pg.@match;
+		}
+		
+		private function getFamilyMatch(pg:XML, column:DataGridColumn):String {
+			return pg.@nomatch == 'true' ? '(not a match)' : pg.@match;
+		}
+		
+		private function getEdited(pf:XML, column:DataGridColumn):String {
+			if (pf.@edited.toString().length > 0) {
+				return pf.@edited == 'true' ? 'Yes' : '';
+			}
+			else {
+				return '';
+			}
+		}
+		
+		private function getMerged(pf:XML, column:DataGridColumn):String {
+			if (pf.@match.toString().length > 0) {
+				return pf.@merged == 'true' ? 'Yes' : '';
+			}
+			else {
+				return '';
+			}
+		}
+		
+		private function distanceDataTip(data:XML):String {
+			return "Distance from the root of the tree";			
+		}
+		
+		//
+		// update functions
+		//
+
+		public function onTabClick(event:ItemClickEvent):void {
+			var component:int = TABS[event.index].component;
+			var data:XML = null;
+			if (component == ModelUtils.PEOPLE) {
+				data = peopleDataGrid.selectedItem as XML;
+			}
+			else if (component == ModelUtils.FAMILIES) {
+				data = familiesDataGrid.selectedItem as XML;
+			}
+			else if (component == ModelUtils.WARNINGS) {
+				data = warningsDataGrid.selectedItem as XML;
+			}
+			else if (component == ModelUtils.PLACES) {
+				data = placesDataGrid.selectedItem as XML;
+			}
+			else if (component == ModelUtils.SOURCES) {
+				data = sourcesDataGrid.selectedItem as XML;
+			}
+			else if (component == ModelUtils.MATCHES) {
+				data = matchesDataGrid.selectedItem as XML;
+			}
+//			else if (component == ModelUtils.UPDATES) {
+//				data = updatesDataGrid.selectedItem as XML;
+//			}
+
+			log.info("onTabChange component={0}", component);
+			setSelectedItem(data, component);
+			mc.selectedItemUpdated(data, component);
+			mc.fetchItem(data, component);
+		}
+		
+		private function setSelectedTab(component:int):void {
+			for (var i:int = 0; i < TABS.length; i++) {
+				if (TABS[i].component == component) {
+					tabs.selectedIndex = i;
+					break;
+				}
+			}
+
+         // update the stats before each tab switch
+//			if (component == ModelUtils.OVERVIEW || component == ModelUtils.IMPORT || component == ModelUtils.MATCHES) {
+				mc.updateStats();
+//			}
+			
+			overviewTab.visible = (component == ModelUtils.OVERVIEW);
+			peopleTab.visible = (component == ModelUtils.PEOPLE);
+			familiesTab.visible = (component == ModelUtils.FAMILIES);
+			warningsTab.visible = (component == ModelUtils.WARNINGS);
+			placesTab.visible = (component == ModelUtils.PLACES);
+			sourcesTab.visible = (component == ModelUtils.SOURCES);
+			matchesTab.visible = (component == ModelUtils.MATCHES);
+//			updatesTab.visible = (component == ModelUtils.UPDATES);
+			importTab.visible = (component == ModelUtils.IMPORT);
+		}
+		
+		public function reposition(dg:DataGrid):void {
+			var rowCount:int = resized ? 0 : dg.rowCount;
+			resized = false;
+			dg.verticalScrollPosition = Math.max(0, Math.min(dg.selectedIndex - Math.floor(rowCount/2), 
+																			 dg.maxVerticalScrollPosition));
+		}
+		
+		[Mediate(event="gedcom:setSelectedItem", properties="data, component")]		
+		public function setSelectedItem(data:XML, component:int):void {
+			log.info("setSelectedItem tab={0} item={1}", component, data ? data.@id : 'null');
+			if (component == ModelUtils.PEOPLE) {
+				if (peopleDataGrid == null) {
+					initialData = data;
+				}
+				else {
+					peopleDataGrid.selectedItem = data;
+					reposition(peopleDataGrid);
+				}
+			}
+			else if (component == ModelUtils.FAMILIES) {
+				if (familiesDataGrid == null) {
+					initialData = data;
+				}
+				else {
+					familiesDataGrid.selectedItem = data;
+					reposition(familiesDataGrid);
+				}
+			}
+			else if (component == ModelUtils.SOURCES) {
+				if (sourcesDataGrid == null) {
+					initialData = data;
+				}
+				else {
+					sourcesDataGrid.selectedItem = data;
+					reposition(sourcesDataGrid);
+				}
+			}
+			else if (component == ModelUtils.PLACES) {
+				if (placesDataGrid == null) {
+					initialData = data;
+				}
+				else {
+					placesDataGrid.selectedItem = data;
+					reposition(placesDataGrid);
+				}
+			}
+			else if (component == ModelUtils.WARNINGS) {
+				if (warningsDataGrid == null) {
+					initialData = data;
+				}
+				else {
+					warningsDataGrid.selectedItem = data;
+					reposition(warningsDataGrid);
+				}
+			}
+			else if (component == ModelUtils.MATCHES) {
+				if (matchesDataGrid == null) {
+					initialData = data;
+				}
+				else {
+					matchesDataGrid.selectedItem = data;
+					reposition(matchesDataGrid);
+				}
+			}
+//			else if (component == ModelUtils.UPDATES) {
+//				if (updatesDataGrid == null) {
+//					initialData = data;
+//				}
+//				else {
+//					updatesDataGrid.selectedItem = data;
+//					reposition(updatesDataGrid);
+//				}
+//			}
+			
+			setSelectedTab(component);
+		}
+		
+		private function onClickHelp():void {
+			var component:int = TABS[tabs.selectedIndex].component;
+			mc.loadPageTitle(ModelUtils.HELPPAGES[component], null, true);
+		}
+		
+		private function onClick(data:Object, component:int):void {
+			log.info("onClick");
+			mc.selectedItemUpdated(data as XML, component);
+			mc.fetchItem(data as XML, component);
+		}
+		
+		private function onChange(data:Object, component:int, selectedItemUpdated:Boolean):void {
+			log.info("onChange data={0} component={1}",
+							(data == null ? "null" : data.@id), component);
+			if (selectedItemUpdated) {
+				mc.selectedItemUpdated(data as XML, component);
+				mc.fetchItem(data as XML, component);
+			}
+		}
+
+      private function onClickPrintWarnings():void {
+         //mc.printWarnings(this, warningsDataGrid);
+         ExternalInterface.call("loadContentNewWindow", "/gedcom/warnings.html");
+      }
+		
+	]]>
+	</mx:Script>
+	<!-- <logging:SOSLoggingTarget
+		fieldSeparator="->"
+		includeCategory="true"
+		includeLevel="true"
+		includeTime="true" 
+		xmlns:logging="com.soenkerohde.logging.*"/> -->
+   <mx:NumberFormatter id="warningLevelFormatter"
+        precision="1" 
+        rounding="down"
+        decimalSeparatorTo="."/>
+	<mx:HBox width="100%">
+		<mx:TabBar id="tabs" itemClick="onTabClick(event)">
+			<mx:dataProvider>
+				{TABS}
+			</mx:dataProvider>
+		</mx:TabBar>
+		<mx:Spacer width="100%"/>
+		<mx:VBox verticalAlign="middle" paddingLeft="0" paddingRight="5" height="100%">
+			<mx:Button label="Help" click="onClickHelp()"/>
+		</mx:VBox>
+	</mx:HBox>	
+	<mx:Canvas id="containers" width="100%" height="100%" backgroundColor="#ffffff">
+		<mx:Canvas id="overviewTab" visible="true" x="0" y="0" width="100%" height="100%" horizontalScrollPolicy="off">
+			<mx:VBox width="100%" height="100%" paddingBottom="20">
+				<mx:Label text="Next steps:" paddingTop="10" width="100%" fontSize="{headerFontSize}"/>
+				<mx:HBox paddingLeft="30">
+					<mx:Image source="@Embed(source='/images/arrow_r.png')" height="20" verticalAlign="bottom"/>
+					<mx:Text width="700" htmlText="{model.nextSteps}" fontSize="13"/>
+				</mx:HBox>
+				<mx:HBox paddingLeft="30" paddingTop="5">
+					<mx:Button width="170" click="mc.returnToWeRelate()" label="Return to WeRelate"/>
+					<mx:Text paddingLeft="10" width="650" htmlText="@Resource(key='returntowerelate', bundle='messages')"/>
+				</mx:HBox>
+				<mx:HBox paddingLeft="30" paddingTop="0">
+					<mx:Button width="170" click="mc.removeGedcom()" label="Remove this GEDCOM" enabled="{model.isUpdatable}"/>
+					<mx:Text paddingLeft="10" width="650" htmlText="@Resource(key='removegedcom', bundle='messages')"/>
+				</mx:HBox>
+            <mx:Label text="Quality:" paddingTop="10" fontSize="{headerFontSize}"/>
+            <mx:Grid paddingLeft="30" width="700" verticalGap="3">
+               <mx:GridRow width="100%" height="100%">
+                  <mx:GridItem width="{statsLabelWidth}" height="100%">
+                     <mx:Label text="Warning level:" textAlign="right" width="100%" fontWeight="bold"/>
+                  </mx:GridItem>
+                  <mx:GridItem width="{statsNumberWidth}" height="100%">
+                     <mx:Label text="{warningLevelFormatter.format(model.warningLevel)}%"/>
+                  </mx:GridItem>
+                  <mx:GridItem width="{statsCommentWidth}" height="100%">
+                     <mx:Text htmlText="{model.warningComment}" color="red" width="{statsCommentWidth}"/>
+                  </mx:GridItem>
+               </mx:GridRow>
+               <mx:GridRow width="100%" height="100%">
+                  <mx:GridItem width="{statsLabelWidth}" height="100%">
+                     <mx:Label text="Duplicates:" textAlign="right" width="100%" fontWeight="bold"/>
+                  </mx:GridItem>
+                  <mx:GridItem width="{statsNumberWidth}" height="100%">
+                     <mx:Label text="{model.duplicateCount}"/>
+                  </mx:GridItem>
+                  <mx:GridItem width="{statsCommentWidth}" height="100%">
+                     <mx:Text text="{model.duplicateComment}" color="red" width="{statsCommentWidth}" />
+                  </mx:GridItem>
+               </mx:GridRow>
+               <mx:GridRow width="100%" height="100%">
+                  <mx:GridItem width="{statsLabelWidth}" height="100%">
+                     <mx:Label text="Sources:" textAlign="right" width="100%" fontWeight="bold"/>
+                  </mx:GridItem>
+                  <mx:GridItem width="{statsNumberWidth}" height="100%">
+                     <mx:Label text="{model.totalNonExcludedSources}"/>
+                  </mx:GridItem>
+                  <mx:GridItem width="{statsCommentWidth}" height="100%">
+                     <mx:Text text=""/>
+                  </mx:GridItem>
+               </mx:GridRow>
+            </mx:Grid>
+				<mx:Label text="Root:" paddingTop="10" fontSize="{headerFontSize}"/>
+				<mx:Label paddingLeft="30" fontWeight="bold" width="700"
+						text="{mu.getPersonFullName(model.primaryPerson)}  ({model.primaryPerson.event_fact.(@type=='Birth').@date} - {model.primaryPerson.event_fact.(@type=='Death').@date})"/>
+<!--
+				<mx:Text paddingLeft="30" width="700" htmlText="To change the root, click on the &lt;i&gt;People&lt;/i&gt; tab, then right-click on the person you want to be the root."/>
+-->				
+				<mx:Label text="Statistics:" paddingTop="10" width="100%" fontSize="{headerFontSize}"/>
+				<mx:Grid paddingLeft="30" width="700" verticalGap="3">
+					<mx:GridRow width="100%" height="100%">
+						<mx:GridItem width="{statsLabelWidth}" height="100%">
+							<mx:Label text="People:" textAlign="right" width="100%" fontWeight="bold"/>
+						</mx:GridItem>
+						<mx:GridItem width="{statsNumberWidth}" height="100%">
+							<mx:Label text="{model.peopleToImport} / {model.peopleMatched} / {model.peopleExcluded}"/>
+						</mx:GridItem>
+						<mx:GridItem width="{statsCommentWidth}" height="100%">
+							<mx:Label text="to be imported / matched / excluded"/>
+						</mx:GridItem>
+					</mx:GridRow>
+					<mx:GridRow width="100%" height="100%">
+						<mx:GridItem width="{statsLabelWidth}" height="100%">
+							<mx:Label text="Families:" textAlign="right" width="100%" fontWeight="bold"/>
+						</mx:GridItem>
+						<mx:GridItem width="{statsNumberWidth}" height="100%">
+							<mx:Label text="{model.familiesToImport} / {model.familiesMatched} / {model.familiesExcluded}"/>
+						</mx:GridItem>
+						<mx:GridItem width="{statsCommentWidth}" height="100%">
+							<mx:Label text="to be imported / matched / excluded"/>
+						</mx:GridItem>
+					</mx:GridRow>
+					<mx:GridRow width="100%" height="100%">
+						<mx:GridItem width="{statsLabelWidth}" height="100%">
+							<mx:Label text="Warnings:" textAlign="right" width="100%" fontWeight="bold"/>
+						</mx:GridItem>
+						<mx:GridItem width="{statsNumberWidth}" height="100%">
+							<mx:Label text="{model.warningsRead} / {model.warningsUnread}"/>
+						</mx:GridItem>
+						<mx:GridItem width="{statsCommentWidth}" height="100%">
+							<mx:Label text="read / unread"/>
+						</mx:GridItem>
+					</mx:GridRow>
+					<mx:GridRow width="100%" height="100%">
+						<mx:GridItem width="{statsLabelWidth}" height="100%">
+							<mx:Label text="Places:" textAlign="right" width="100%" fontWeight="bold"/>
+						</mx:GridItem>
+						<mx:GridItem width="{statsNumberWidth}" height="100%">
+							<mx:Label text="{model.placesMatched} / {model.placesUnmatched}"/>
+						</mx:GridItem>
+						<mx:GridItem width="{statsCommentWidth}" height="100%">
+							<mx:Label text="matched / not matched"/>
+						</mx:GridItem>
+					</mx:GridRow>
+					<mx:GridRow width="100%" height="100%">
+						<mx:GridItem width="{statsLabelWidth}" height="100%">
+							<mx:Label text="Sources:" textAlign="right" width="100%" fontWeight="bold"/>
+						</mx:GridItem>
+						<mx:GridItem width="{statsNumberWidth}" height="100%">
+							<mx:Label text="{model.sourcesToImport} / {model.sourcesMatched} / {model.sourcesExcluded} / {model.sourcesCitationOnly}"/>
+						</mx:GridItem>
+						<mx:GridItem width="{statsCommentWidth}" height="100%">
+							<mx:Label text="to be imported / matched / excluded / citation-only"/>
+						</mx:GridItem>
+					</mx:GridRow>
+					<mx:GridRow width="100%" height="100%">
+						<mx:GridItem width="{statsLabelWidth}" height="100%">
+							<mx:Label text="Family Matches:" textAlign="right" width="100%" fontWeight="bold"/>
+						</mx:GridItem>
+						<mx:GridItem width="{statsNumberWidth}" height="100%">
+							<mx:Label text="{model.matchesMatched} / {model.matchesUnmatched} / {model.matchesUndecided}"/>
+						</mx:GridItem>
+						<mx:GridItem width="{statsCommentWidth}" height="100%">
+							<mx:Label text="matched / not matched / undecided"/>
+						</mx:GridItem>
+					</mx:GridRow>
+<!--
+					<mx:GridRow width="100%" height="100%">
+						<mx:GridItem width="{statsLabelWidth}" height="100%">
+							<mx:Label text="GEDCOM Updates:" textAlign="right" width="100%" fontWeight="bold"/>
+						</mx:GridItem>
+						<mx:GridItem width="{statsNumberWidth}" height="100%">
+							<mx:Label text="{model.updatesMade} / {model.updatesNotMade}"/>
+						</mx:GridItem>
+						<mx:GridItem width="{statsCommentWidth}" height="100%">
+							<mx:Label text="made / not made"/>
+						</mx:GridItem>
+					</mx:GridRow>
+-->					
+				</mx:Grid>
+			</mx:VBox>
+		</mx:Canvas>
+		<mx:Canvas id="peopleTab" visible="false" x="0" y="0" width="100%" height="100%">
+			<mx:DataGrid id="peopleDataGrid" dataProvider="{model.people}" 
+				horizontalScrollPolicy="off" verticalScrollPolicy="auto" 
+				height="100%" width="100%"
+				itemRollOver="peopleRollOverIndex = event.rowIndex" 
+				creationComplete="onPeopleDataGridCreationComplete(event)"
+				click="onClick(peopleDataGrid.selectedItem, ModelUtils.PEOPLE)"
+				change="onChange(peopleDataGrid.selectedItem, ModelUtils.PEOPLE, peopleDataGrid.selectedIndex != peopleRollOverIndex)" 
+			>
+			<mx:columns>
+				<mx:DataGridColumn headerText="Exclude" width="5" sortCompareFunction="sortExclude"
+										 itemRenderer="org.werelate.comps.ExcludeCheckBox"/>
+				<mx:DataGridColumn headerText="Name" width="20" labelFunction="getPersonName" 
+										 dataField="@stdName" sortCompareFunction="sortName"
+										 itemRenderer="org.werelate.comps.ExcludableItemRenderer"/>
+				<mx:DataGridColumn headerText="Gender" width="5" dataField="gender"
+										 itemRenderer="org.werelate.comps.ExcludableItemRenderer"/>
+				<mx:DataGridColumn headerText="Birth" width="12"
+										 labelFunction="getPersonBirthDate" sortCompareFunction="sortDate"
+										 itemRenderer="org.werelate.comps.ExcludableItemRenderer"/>
+				<mx:DataGridColumn headerText="Death" width="12"
+										 labelFunction="getPersonDeathDate" sortCompareFunction="sortDeathDate"
+										 itemRenderer="org.werelate.comps.ExcludableItemRenderer"/>
+				<mx:DataGridColumn headerText="Distance" width="5" dataTipFunction="distanceDataTip" showDataTips="true"
+										 labelFunction="getDistance" sortCompareFunction="sortDistance"
+										 itemRenderer="org.werelate.comps.ExcludableItemRenderer"/>
+            <mx:DataGridColumn headerText="Living" width="5" sortCompareFunction="sortLiving"
+                               itemRenderer="org.werelate.comps.LivingCheckBox"/>
+            <mx:DataGridColumn headerText="Early" width="5" sortCompareFunction="sortBeforeCutoff"
+                               itemRenderer="org.werelate.comps.BeforeCutoffCheckBox"/>
+				<mx:DataGridColumn headerText="Matched Page" width="16"
+										 labelFunction="getMatch" sortCompareFunction="sortMatch"
+										 itemRenderer="org.werelate.comps.ExcludableItemRenderer"/>
+<!--
+				<mx:DataGridColumn headerText="Edited" width="5" labelFunction="getEdited"  
+										 dataField="@edited" sortCompareFunction="sortEdited"
+										 itemRenderer="org.werelate.comps.ExcludableItemRenderer"/>
+-->
+			</mx:columns>
+			</mx:DataGrid>
+		</mx:Canvas>
+		<mx:Canvas id="familiesTab" visible="false" x="0" y="0" width="100%" height="100%">
+			<mx:DataGrid id="familiesDataGrid" dataProvider="{model.families}" 
+				horizontalScrollPolicy="off" verticalScrollPolicy="auto" 
+				height="100%" width="100%"
+				itemRollOver="familiesRollOverIndex = event.rowIndex" 
+				creationComplete="onFamiliesDataGridCreationComplete(event)" 
+				click="onClick(familiesDataGrid.selectedItem, ModelUtils.FAMILIES)"
+				change="onChange(familiesDataGrid.selectedItem, ModelUtils.FAMILIES, familiesDataGrid.selectedIndex != familiesRollOverIndex)" 
+			>
+			<mx:columns>
+				<mx:DataGridColumn headerText="Exclude" width="5" sortCompareFunction="sortExclude"
+										 itemRenderer="org.werelate.comps.ExcludeCheckBox"/>
+				<mx:DataGridColumn headerText="Husband" width="25" labelFunction="getFamilyHusbandName" 
+										 dataField="@stdHusbandName" sortCompareFunction="sortHusbandName"
+										 itemRenderer="org.werelate.comps.ExcludableItemRenderer"/>
+				<mx:DataGridColumn headerText="Wife" width="25" labelFunction="getFamilyWifeName" 
+										 dataField="@stdWifeName" sortCompareFunction="sortWifeName"
+										 itemRenderer="org.werelate.comps.ExcludableItemRenderer"/>
+				<mx:DataGridColumn headerText="Marriage" width="15" 
+										 labelFunction="getFamilyMarriageDate" sortCompareFunction="sortDate"
+										 itemRenderer="org.werelate.comps.ExcludableItemRenderer"/>
+				<mx:DataGridColumn headerText="Distance" width="5" dataTipFunction="distanceDataTip" showDataTips="true"
+										 labelFunction="getDistance" sortCompareFunction="sortDistance"
+										 itemRenderer="org.werelate.comps.ExcludableItemRenderer"/>
+				<mx:DataGridColumn headerText="Matched Page" width="20" 
+										 labelFunction="getMatch" sortCompareFunction="sortMatch"
+										 itemRenderer="org.werelate.comps.ExcludableItemRenderer"/>
+<!--
+				<mx:DataGridColumn headerText="Edited" width="5" labelFunction="getEdited"
+										 dataField="@edited" sortCompareFunction="sortEdited"
+										 itemRenderer="org.werelate.comps.ExcludableItemRenderer"/>
+-->
+			</mx:columns>
+			</mx:DataGrid>
+		</mx:Canvas>
+		<mx:Canvas id="warningsTab" visible="false" x="0" y="0" width="100%" height="100%">
+         <mx:VBox width="100%" height="100%" paddingTop="0" paddingBottom="0">
+            <mx:HBox width="100%" paddingTop="5" paddingBottom="0" paddingRight="5">
+               <mx:Spacer width="100%"/>
+               <mx:Button label="Print Warnings" click="onClickPrintWarnings()"/>
+            </mx:HBox>
+            <mx:DataGrid id="warningsDataGrid" dataProvider="{model.warnings}"
+               horizontalScrollPolicy="off" verticalScrollPolicy="auto"
+               height="100%" width="100%"
+               itemRollOver="warningsRollOverIndex = event.rowIndex"
+               creationComplete="onWarningsDataGridCreationComplete(event)"
+               click="onClick(warningsDataGrid.selectedItem, ModelUtils.WARNINGS)"
+               change="onChange(warningsDataGrid.selectedItem, ModelUtils.WARNINGS, warningsDataGrid.selectedIndex != warningsRollOverIndex)"
+            >
+            <mx:columns>
+               <mx:DataGridColumn headerText="Person/Family" width="30" labelFunction="getWarningPersonFamilyName"
+                                  dataField="@stdName" sortCompareFunction="sortWarningName"
+                                  itemRenderer="org.werelate.comps.WarningItemRenderer"/>
+<!--
+				<mx:DataGridColumn headerText="Distance" width="5" dataTipFunction="distanceDataTip" showDataTips="true" 
+										 labelFunction="getWarningDistance" sortCompareFunction="sortWarningDistance"
+										 itemRenderer="org.werelate.comps.WarningItemRenderer"/>
+-->										 
+               <mx:DataGridColumn headerText="Description" width="45"
+                                  dataField="@warning" sortCompareFunction="sortWarning"
+                                  dataTipField="@warning" showDataTips="true"
+                                  itemRenderer="org.werelate.comps.WarningItemRenderer"/>
+               <mx:DataGridColumn headerText="Level" width="5" labelFunction="getWarningLevel"
+                                  dataField="@warningLevel" sortCompareFunction="sortWarningLevel"
+                                  itemRenderer="org.werelate.comps.WarningItemRenderer"/>
+<!--
+				<mx:DataGridColumn headerText="Edited" width="5" labelFunction="getEdited"  
+										 dataField="@edited" sortCompareFunction="sortEdited"
+										 itemRenderer="org.werelate.comps.WarningItemRenderer"/>
+-->
+   			</mx:columns>
+	   		</mx:DataGrid>
+         </mx:VBox>
+		</mx:Canvas>
+		<mx:Canvas id="placesTab" visible="false" x="0" y="0" width="100%" height="100%">
+			<mx:DataGrid id="placesDataGrid" dataProvider="{model.places}" 
+				horizontalScrollPolicy="off" verticalScrollPolicy="auto" 
+				height="100%" width="100%" 
+				itemRollOver="placesRollOverIndex = event.rowIndex" 
+				creationComplete="onPlacesDataGridCreationComplete(event)" 
+				click="onClick(placesDataGrid.selectedItem, ModelUtils.PLACES)"
+				change="onChange(placesDataGrid.selectedItem, ModelUtils.PLACES, placesDataGrid.selectedIndex != placesRollOverIndex)" 
+			>
+			<mx:columns>
+				<mx:DataGridColumn headerText="Place" width="30" labelFunction="getPlaceName" 
+										 dataField="@stdName" sortCompareFunction="sortName"
+										 itemRenderer="org.werelate.comps.ReadableItemRenderer"/>
+				<mx:DataGridColumn headerText="Matched Page" width="20" 
+										 labelFunction="getMatch" sortCompareFunction="sortMatch"
+										 itemRenderer="org.werelate.comps.ReadableItemRenderer"/>
+			</mx:columns>
+			</mx:DataGrid>
+		</mx:Canvas>
+		<mx:Canvas id="sourcesTab" visible="false" x="0" y="0" width="100%" height="100%">
+			<mx:DataGrid id="sourcesDataGrid" dataProvider="{model.sources}" 
+				horizontalScrollPolicy="off" verticalScrollPolicy="auto" 
+				height="100%" width="100%"
+				itemRollOver="sourcesRollOverIndex = event.rowIndex" 
+				creationComplete="onSourcesDataGridCreationComplete(event)"
+				click="onClick(sourcesDataGrid.selectedItem, ModelUtils.SOURCES)"
+				change="onChange(sourcesDataGrid.selectedItem, ModelUtils.SOURCES, sourcesDataGrid.selectedIndex != sourcesRollOverIndex)" 
+			>
+			<mx:columns>
+				<mx:DataGridColumn headerText="Exclude" width="5" sortCompareFunction="sortExclude"
+										 itemRenderer="org.werelate.comps.ExcludeCheckBox"/>
+				<mx:DataGridColumn headerText="Title" width="30" labelFunction="getSourceName" 
+										 dataField="@stdName" sortCompareFunction="sortName"
+										 itemRenderer="org.werelate.comps.ReadableItemRenderer"/>
+				<mx:DataGridColumn headerText="Author" width="30" 
+										 labelFunction="getSourceAuthor" sortCompareFunction="sortAuthor"
+										 itemRenderer="org.werelate.comps.ReadableItemRenderer"/>
+				<mx:DataGridColumn headerText="Matched Page" width="20" 
+										 labelFunction="getMatch" sortCompareFunction="sortMatch"
+										 itemRenderer="org.werelate.comps.ReadableItemRenderer"/>
+			</mx:columns>
+			</mx:DataGrid>
+		</mx:Canvas>
+		<mx:Canvas id="matchesTab" visible="false" x="0" y="0" width="100%" height="100%">
+			<mx:DataGrid id="matchesDataGrid" dataProvider="{model.matches}" 
+				horizontalScrollPolicy="off" verticalScrollPolicy="auto" 
+				height="100%" width="100%"
+				itemRollOver="matchesRollOverIndex = event.rowIndex" 
+				creationComplete="onMatchesDataGridCreationComplete(event)" 
+				click="onClick(matchesDataGrid.selectedItem, ModelUtils.MATCHES)"
+				change="onChange(matchesDataGrid.selectedItem, ModelUtils.MATCHES, matchesDataGrid.selectedIndex != matchesRollOverIndex)" 
+			>
+			<mx:columns>
+				<mx:DataGridColumn headerText="Husband" width="25" labelFunction="getFamilyHusbandName" 
+										 dataField="@stdHusbandName" sortCompareFunction="sortHusbandName"
+										 itemRenderer="org.werelate.comps.MatchItemRenderer"/>
+				<mx:DataGridColumn headerText="Wife" width="25" labelFunction="getFamilyWifeName" 
+										 dataField="@stdWifeName" sortCompareFunction="sortWifeName"
+										 itemRenderer="org.werelate.comps.MatchItemRenderer"/>
+				<mx:DataGridColumn headerText="Marriage" width="15" labelFunction="getFamilyMarriageDate" sortCompareFunction="sortDate"
+										 itemRenderer="org.werelate.comps.MatchItemRenderer"/>
+				<mx:DataGridColumn headerText="Distance" width="10" dataTipFunction="distanceDataTip" showDataTips="true"
+										 labelFunction="getDistance" sortCompareFunction="sortDistance"
+										 itemRenderer="org.werelate.comps.MatchItemRenderer"/>
+				<mx:DataGridColumn headerText="Matched Page" width="30" 
+										 labelFunction="getFamilyMatch" sortCompareFunction="sortMatch"
+										 itemRenderer="org.werelate.comps.MatchItemRenderer"/>
+				<mx:DataGridColumn headerText="Updated" width="10" 
+										 labelFunction="getMerged" sortCompareFunction="sortMerged"
+										 itemRenderer="org.werelate.comps.MatchItemRenderer"/>
+			</mx:columns>
+			</mx:DataGrid>
+		</mx:Canvas>
+<!--
+		<mx:Canvas id="updatesTab" visible="false" x="0" y="0" width="100%" height="100%">
+			<mx:DataGrid id="updatesDataGrid" dataProvider="{model.updates}" 
+				horizontalScrollPolicy="off" verticalScrollPolicy="auto" 
+				height="100%" width="100%"
+				itemRollOver="updatesRollOverIndex = event.rowIndex" 
+				creationComplete="onUpdatesDataGridCreationComplete(event)" 
+				click="onClick(updatesDataGrid.selectedItem, ModelUtils.UPDATES)"
+				change="onChange(updatesDataGrid.selectedItem, ModelUtils.UPDATES, updatesDataGrid.selectedIndex != updatesRollOverIndex)" 
+			>
+			<mx:columns>
+				<mx:DataGridColumn headerText="Person/Family" width="20" labelFunction="getPersonFamilyName" 
+										 dataField="@stdName" sortCompareFunction="sortName"
+										 itemRenderer="org.werelate.comps.UpdateItemRenderer"/>
+				<mx:DataGridColumn headerText="Matched Page" width="20" 
+										 labelFunction="getMatch" sortCompareFunction="sortMatch"
+										 itemRenderer="org.werelate.comps.UpdateItemRenderer"/>
+				<mx:DataGridColumn headerText="Updated" width="10" 
+										 labelFunction="getMerged" sortCompareFunction="sortMerged"
+										 itemRenderer="org.werelate.comps.UpdateItemRenderer"/>
+			</mx:columns>
+			</mx:DataGrid>
+		</mx:Canvas>
+-->
+		<mx:Canvas id="importTab" visible="false" x="0" y="0" width="100%" height="100%" horizontalScrollPolicy="off">
+			<mx:VBox width="100%" paddingBottom="10" paddingTop="10">
+				<mx:Label text="Import your GEDCOM" width="100%" fontSize="{headerFontSize}"/>
+				<mx:Spacer height="10"/>
+				<mx:Text paddingLeft="30" width="700" htmlText="{model.importInstructions}" fontSize="12"/>
+				<mx:Spacer height="10"/>
+				<mx:HBox>
+					<mx:Spacer width="30"/>
+					<mx:Button click="mc.readyToImport()" label="Ready to import" enabled="{model.isImportable}"/>
+					<mx:Spacer width="10"/>
+					<mx:Button click="mc.visitUserTalk()" label="Leave a message" visible="{model.isReturnable}"/>
+               <mx:Spacer width="10"/>
+               <mx:Button click="mc.returnToReview()" label="Return to user review" visible="{model.isReturnable}"/>
+               <mx:Spacer width="10"/>
+               <mx:Button click="mc.putOnHold()" label="Put on hold" visible="{model.isHoldable}"/>
+				</mx:HBox>
+			</mx:VBox>
+		</mx:Canvas>
+	</mx:Canvas>
+</mx:Application>

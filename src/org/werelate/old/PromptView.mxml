@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="vertical" title="Match related families" 
+	horizontalScrollPolicy="off" verticalScrollPolicy="off"	
+	showCloseButton="false"
+	preinitialize="onPreinitialize()" 
+	creationComplete="onCreationComplete()"
+	defaultButton="{matchButton}"
+	verticalGap="0"
+	width="100%" height="100%"
+>
+<mx:Script>
+	<![CDATA[
+		import org.werelate.model.Model;
+		import org.werelate.controllers.PromptController;
+		import org.werelate.shared.Utils;
+		import org.werelate.model.ModelUtils;
+
+		[Autowire]
+		public var pc: PromptController;
+		[Autowire]
+		public var model : Model;
+		[Autowire]
+		public var mu : ModelUtils;
+
+		[Bindable]
+		private var pf:XML;		
+		[Bindable]
+		private var instructionsLabel:String;
+		
+		private function onPreinitialize():void {
+			instructionsLabel = "<ul>" + 
+				"<li><b>Match</b>: link to the wiki pages shown below 'as is' without changing them</li>" + 
+				"<li><b>Prepare to Merge</b>: update the wiki pages with information from your GEDCOM</li>" + 
+				"<li><b>Match All</b>: match the pages below and all related pages automatically<br/>" + 
+				"<i>Make sure spouses and children are matched correctly below before pressing</i> Match <i>or</i> Prepare to Merge <i>or</i> Match All</li>" + 
+				"<li><b>Not a match</b>: the GEDCOM family does not match the wiki page</li>" + 
+				"<li><b>Cancel</b>: stop matching</li>" + 
+				"</ul>";
+		} 
+		
+		private function onCreationComplete():void {
+			matchButton.setFocus();
+		} 
+		
+		public function init(data:XML):void {
+			this.pf = data;
+		}
+		
+		private function getPersonFamilyTitle(pf:XML):String {
+			if (pf.@ns == ModelUtils.NS_PERSON) {
+				return mu.getPersonTitle(pf);
+			}			
+			else {
+				var husband:XML = (pf.husband[0] ? model.personMap[pf.husband[0].@id] : null);
+				var wife:XML = (pf.wife[0] ? model.personMap[pf.wife[0].@id] : null);
+				return mu.getFamilyTitle(husband, wife);
+			}
+		}
+		
+		// actions only work for 1 potential match
+		private function getMatchesAsHtml(pf:XML):String {
+			return Utils.htmlspecialchars(pf.@matches.toString()).split('|').join('<br/>');
+		}
+	]]>
+</mx:Script>	
+
+<mx:Label text="Match" paddingTop="10"	textAlign="center" width="100%" fontSize="10"/>
+<mx:Label text="{getPersonFamilyTitle(pf)}" fontWeight="bold" fontSize="14" textAlign="center" width="100%"/>
+<mx:Label text="with" textAlign="center" width="100%" fontSize="10"/>
+<mx:Text htmlText="{getMatchesAsHtml(pf)} ?" textAlign="center" width="100%" fontWeight="bold" fontSize="12"/>
+<mx:HBox horizontalGap="25" paddingLeft="25" paddingRight="25" paddingTop="10" paddingBottom="10"	
+			horizontalAlign="center" width="100%">
+	<mx:Button id="matchButton" label="Match" click="pc.match()"/>
+	<mx:Button label="Prepare to Merge" click="pc.merge()"/>
+	<mx:Button label="Match All" click="pc.matchAll()"/>
+	<mx:Button label="Not a match" click="pc.notMatch()"/>
+</mx:HBox>
+</mx:TitleWindow>

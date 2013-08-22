@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="vertical" title="Unlink family members" 
+	horizontalScrollPolicy="off" verticalScrollPolicy="off"	
+	showCloseButton="true"
+	close="ok(false);"	
+	defaultButton="{okButton}"
+	creationComplete="onCreationComplete()"
+	width="100%" height="100%"
+>
+	
+<mx:Script>
+	<![CDATA[
+		import org.werelate.model.ModelUtils;
+		import org.werelate.controllers.UnlinkController;
+		import mx.core.Application;
+		import mx.managers.PopUpManager;
+		import mx.collections.ArrayCollection;
+
+		[Autowire]
+		public var uc:UnlinkController;
+		[Autowire]
+		public var mu : ModelUtils;
+		
+		[Bindable]
+		private var members:ArrayCollection;
+		
+		public function init(members:ArrayCollection):void {
+			this.members = members;
+		}
+		
+		private function onCreationComplete():void {
+			okButton.setFocus();
+		} 
+		
+		public function show():void {
+			PopUpManager.addPopUp(this, DisplayObject(Application.application), true);
+			PopUpManager.centerPopUp(this);
+		}
+		
+		private function getPersonName(person:XML, column:DataGridColumn):String {
+			return mu.getPersonFullName(person);
+		}
+		
+		private function getPersonBirthDate(person:XML, column:DataGridColumn):String {
+			return person.@living == 'true' ? "living" : person.event_fact.(@type=='Birth').@date;
+		}
+		
+		private function getPersonDeathDate(person:XML, column:DataGridColumn):String {
+			return person.@living == 'true' ? "living" : person.event_fact.(@type=='Death').@date;
+		}
+		
+		private function selectAll():void {
+			for each (var member:XML in members) {
+				member.@unlink = 'true';
+			}
+			membersDataGrid.invalidateList();
+		}
+		
+		private function ok(ok:Boolean):void {
+			PopUpManager.removePopUp(this);
+			var datas:Array = new Array();
+			var member:XML;
+			if (ok) {
+				for each (member in members) {
+					if (member.@unlink == 'true') {
+						datas.push(member);
+					}
+				}
+			}
+			// clean up after ourselves
+			for each (member in members) {
+				delete member.@unlink;
+			}
+			uc.unlink(ok, datas);
+		}
+	]]>
+</mx:Script>	
+
+<mx:Label text="Please choose which family members to unlink" width="100%" fontSize="12"/>
+<mx:DataGrid id="membersDataGrid" dataProvider="{members}" 
+	horizontalScrollPolicy="off" verticalScrollPolicy="auto" 
+	height="100" width="600"
+>
+<mx:columns>
+	<mx:DataGridColumn headerText="Unlink" width="10" dataField="selected">
+		<mx:itemRenderer>
+      	<mx:Component>
+      		<mx:HBox width="100%" horizontalAlign="center">
+		         <mx:CheckBox click="{data.@unlink == 'true' ? data.@unlink = 'false' : data.@unlink = 'true'}"
+		         				 selected="{data.@unlink == 'true'}"/>
+      		</mx:HBox>
+	      </mx:Component>						
+   	</mx:itemRenderer>
+   </mx:DataGridColumn>
+	<mx:DataGridColumn headerText="Name" width="25" labelFunction="getPersonName" dataField="@stdName"/>
+	<mx:DataGridColumn headerText="Gender" width="5" dataField="gender"/>
+	<mx:DataGridColumn headerText="Birth" width="10" labelFunction="getPersonBirthDate" dataField="@stdDate"/>
+	<mx:DataGridColumn headerText="Death" width="10" labelFunction="getPersonDeathDate" dataField="@stdDeathDate"/>
+	<mx:DataGridColumn headerText="Matched Page" width="25" dataField="@match"/>
+</mx:columns>
+</mx:DataGrid>
+
+<mx:HBox paddingLeft="10" paddingRight="10" paddingTop="3" paddingBottom="2"	
+			horizontalAlign="center" width="100%">
+	<mx:Button id="selectButton" label="Select All" click="selectAll()"/>
+	<mx:Spacer width="100%"/>
+	<mx:Button id="okButton" label="Ok" click="ok(true)"/>
+	<mx:Button id="cancelButton" label="Cancel" click="ok(false)"/>
+</mx:HBox>
+</mx:TitleWindow>
