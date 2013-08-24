@@ -1,5 +1,6 @@
 .idea/*
 build.properties
 out/*
+src/generated/*
 compiler-config.xml
 *.iml
