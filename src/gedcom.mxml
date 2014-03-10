@@ -49,9 +49,9 @@
 		[Bindable]
 		private var TABS:ArrayCollection = new ArrayCollection([
 			{label:"1. Overview", component:ModelUtils.OVERVIEW},
-			{label:"2. People",   component:ModelUtils.PEOPLE},
-			{label:"3. Families", component:ModelUtils.FAMILIES},
-			{label:"4. Warnings", component:ModelUtils.WARNINGS},
+      {label:"2. Warnings", component:ModelUtils.WARNINGS},
+			{label:"3. People",   component:ModelUtils.PEOPLE},
+			{label:"4. Families", component:ModelUtils.FAMILIES},
 			{label:"5. Places",   component:ModelUtils.PLACES},
 			{label:"6. Sources",  component:ModelUtils.SOURCES},
 			{label:"7. Family Matches", component:ModelUtils.MATCHES},
@@ -601,9 +601,9 @@
 //			}
 			
 			overviewTab.visible = (component == ModelUtils.OVERVIEW);
+      warningsTab.visible = (component == ModelUtils.WARNINGS);
 			peopleTab.visible = (component == ModelUtils.PEOPLE);
 			familiesTab.visible = (component == ModelUtils.FAMILIES);
-			warningsTab.visible = (component == ModelUtils.WARNINGS);
 			placesTab.visible = (component == ModelUtils.PLACES);
 			sourcesTab.visible = (component == ModelUtils.SOURCES);
 			matchesTab.visible = (component == ModelUtils.MATCHES);
@@ -878,6 +878,45 @@
 				</mx:Grid>
 			</mx:VBox>
 		</mx:Canvas>
+    <mx:Canvas id="warningsTab" visible="false" x="0" y="0" width="100%" height="100%">
+           <mx:VBox width="100%" height="100%" paddingTop="0" paddingBottom="0">
+              <mx:HBox width="100%" paddingTop="5" paddingBottom="0" paddingRight="5">
+                 <mx:Spacer width="100%"/>
+                 <mx:Button label="Print Warnings" click="onClickPrintWarnings()"/>
+              </mx:HBox>
+              <mx:DataGrid id="warningsDataGrid" dataProvider="{model.warnings}"
+                 horizontalScrollPolicy="off" verticalScrollPolicy="auto"
+                 height="100%" width="100%"
+                 itemRollOver="warningsRollOverIndex = event.rowIndex"
+                 creationComplete="onWarningsDataGridCreationComplete(event)"
+                 click="onClick(warningsDataGrid.selectedItem, ModelUtils.WARNINGS)"
+                 change="onChange(warningsDataGrid.selectedItem, ModelUtils.WARNINGS, warningsDataGrid.selectedIndex != warningsRollOverIndex)"
+              >
+              <mx:columns>
+                 <mx:DataGridColumn headerText="Person/Family" width="30" labelFunction="getWarningPersonFamilyName"
+                                    dataField="@stdName" sortCompareFunction="sortWarningName"
+                                    itemRenderer="org.werelate.comps.WarningItemRenderer"/>
+  <!--
+  				<mx:DataGridColumn headerText="Distance" width="5" dataTipFunction="distanceDataTip" showDataTips="true"
+  										 labelFunction="getWarningDistance" sortCompareFunction="sortWarningDistance"
+  										 itemRenderer="org.werelate.comps.WarningItemRenderer"/>
+  -->
+                 <mx:DataGridColumn headerText="Description" width="45"
+                                    dataField="@warning" sortCompareFunction="sortWarning"
+                                    dataTipField="@warning" showDataTips="true"
+                                    itemRenderer="org.werelate.comps.WarningItemRenderer"/>
+                 <mx:DataGridColumn headerText="Level" width="5" labelFunction="getWarningLevel"
+                                    dataField="@warningLevel" sortCompareFunction="sortWarningLevel"
+                                    itemRenderer="org.werelate.comps.WarningItemRenderer"/>
+  <!--
+  				<mx:DataGridColumn headerText="Edited" width="5" labelFunction="getEdited"
+  										 dataField="@edited" sortCompareFunction="sortEdited"
+  										 itemRenderer="org.werelate.comps.WarningItemRenderer"/>
+  -->
+     			</mx:columns>
+  	   	</mx:DataGrid>
+      </mx:VBox>
+  	</mx:Canvas>
 		<mx:Canvas id="peopleTab" visible="false" x="0" y="0" width="100%" height="100%">
 			<mx:DataGrid id="peopleDataGrid" dataProvider="{model.people}" 
 				horizontalScrollPolicy="off" verticalScrollPolicy="auto" 
@@ -953,45 +992,6 @@
 -->
 			</mx:columns>
 			</mx:DataGrid>
-		</mx:Canvas>
-		<mx:Canvas id="warningsTab" visible="false" x="0" y="0" width="100%" height="100%">
-         <mx:VBox width="100%" height="100%" paddingTop="0" paddingBottom="0">
-            <mx:HBox width="100%" paddingTop="5" paddingBottom="0" paddingRight="5">
-               <mx:Spacer width="100%"/>
-               <mx:Button label="Print Warnings" click="onClickPrintWarnings()"/>
-            </mx:HBox>
-            <mx:DataGrid id="warningsDataGrid" dataProvider="{model.warnings}"
-               horizontalScrollPolicy="off" verticalScrollPolicy="auto"
-               height="100%" width="100%"
-               itemRollOver="warningsRollOverIndex = event.rowIndex"
-               creationComplete="onWarningsDataGridCreationComplete(event)"
-               click="onClick(warningsDataGrid.selectedItem, ModelUtils.WARNINGS)"
-               change="onChange(warningsDataGrid.selectedItem, ModelUtils.WARNINGS, warningsDataGrid.selectedIndex != warningsRollOverIndex)"
-            >
-            <mx:columns>
-               <mx:DataGridColumn headerText="Person/Family" width="30" labelFunction="getWarningPersonFamilyName"
-                                  dataField="@stdName" sortCompareFunction="sortWarningName"
-                                  itemRenderer="org.werelate.comps.WarningItemRenderer"/>
-<!--
-				<mx:DataGridColumn headerText="Distance" width="5" dataTipFunction="distanceDataTip" showDataTips="true" 
-										 labelFunction="getWarningDistance" sortCompareFunction="sortWarningDistance"
-										 itemRenderer="org.werelate.comps.WarningItemRenderer"/>
--->										 
-               <mx:DataGridColumn headerText="Description" width="45"
-                                  dataField="@warning" sortCompareFunction="sortWarning"
-                                  dataTipField="@warning" showDataTips="true"
-                                  itemRenderer="org.werelate.comps.WarningItemRenderer"/>
-               <mx:DataGridColumn headerText="Level" width="5" labelFunction="getWarningLevel"
-                                  dataField="@warningLevel" sortCompareFunction="sortWarningLevel"
-                                  itemRenderer="org.werelate.comps.WarningItemRenderer"/>
-<!--
-				<mx:DataGridColumn headerText="Edited" width="5" labelFunction="getEdited"  
-										 dataField="@edited" sortCompareFunction="sortEdited"
-										 itemRenderer="org.werelate.comps.WarningItemRenderer"/>
--->
-   			</mx:columns>
-	   		</mx:DataGrid>
-         </mx:VBox>
 		</mx:Canvas>
 		<mx:Canvas id="placesTab" visible="false" x="0" y="0" width="100%" height="100%">
 			<mx:DataGrid id="placesDataGrid" dataProvider="{model.places}" 
