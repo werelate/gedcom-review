@@ -91,7 +91,7 @@ if ( hasProductInstall && !hasRequestedVersion ) {
 	// if we've detected an acceptable version
 	// embed the Flash Content SWF when all tests are passed
 	AC_FL_RunContent(
-			"src", "gedcom.39",
+			"src", "gedcom.40",
 			"flashVars", "gedcomId=<?php echo urlencode(@$_REQUEST['gedcomId']); ?>",
 			"width", "100%",
 			"height", "100%",
@@ -116,12 +116,12 @@ if ( hasProductInstall && !hasRequestedVersion ) {
   	<object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"
 			id="gedcom" width="100%" height="100%"
 			codebase="http://fpdownload.macromedia.com/get/flashplayer/current/swflash.cab">
-			<param name="movie" value="gedcom.39.swf" />
+			<param name="movie" value="gedcom.40.swf" />
 			<param name="quality" value="high" />
 			<param name="bgcolor" value="#90b0ff" />
 			<param name="allowScriptAccess" value="sameDomain" />
 			<param name="flashVars" value="gedcomId=<?php echo urlencode(@$_REQUEST['gedcomId']); ?>"/>
-			<embed src="gedcom.39.swf" quality="high" bgcolor="#90b0ff"
+			<embed src="gedcom.40.swf" quality="high" bgcolor="#90b0ff"
 				flashVars="gedcomId=<?php echo urlencode(@$_REQUEST['gedcomId']); ?>"
 				width="100%" height="100%" name="gedcom" align="middle"
 				play="true"
