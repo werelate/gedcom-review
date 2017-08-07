@@ -330,7 +330,7 @@ import org.werelate.model.Model;
 		}		
 		
 		public function returnToWeRelate():void {
-			ExternalInterface.call("loadParentContent", "http://"+server);
+			ExternalInterface.call("loadParentContent", "https://"+server);
 		}
 		
 		public function removeGedcom():void {
@@ -931,7 +931,7 @@ import org.werelate.model.Model;
 		}
 
 		public function loadPageTitle(pageTitle:String, parms:Object = null, newWindow:Boolean=false):void {
-			var url:String = "http://" + server;
+			var url:String = "https://" + server;
 			if (parms) {
 				url += "/w/index.php?title="+Utils.encodeWikiURIComponent(pageTitle)+'&'+URLUtil.objectToString(parms, '&');
 			}
