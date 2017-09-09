@@ -38,7 +38,7 @@ import mx.logging.ILogger;
 		private static const log:ILogger = Log.getLogger("org.werelate.services.WeRelateService");
 
 		private function getBaseURL():String {
-			return 'https://'+server+'/w/index.php';
+			return 'http://'+server+'/w/index.php';
 		}		
 		
 		private function sendAjaxService(functionName:String, parms:Object = null, method:String = "GET"):AsyncToken {
