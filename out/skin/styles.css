@@ -1,0 +1,80 @@
+/* CSS file */
+Application
+{
+ 	fontSize: 12;
+	modalTransparency: .3;
+   modalTransparencyColor: #000000;
+
+/*	backgroundGradientColors: #f0eeee, #f0eeee; */
+}
+
+TitleWindow, Alert
+{
+	cornerRadius: 5;
+	paddingBottom: 8;
+	backgroundAlpha: 1;
+	borderAlpha: 1;
+	borderThicknessLeft: 4;
+	borderThicknessRight: 4;
+	borderThicknessBottom: 4;
+	color: #000000;
+	backgroundColor: #FFFFFF;
+	borderColor: #98b0d8;
+}
+
+ApplicationControlBar
+{
+	cornerRadius: 4;
+	fillAlphas: 1, 1; 
+	fillColors: #123D91, #5799F9;
+	verticalAlign: middle; 	
+}
+
+TabBar
+{
+	backgroundColor: #FFFFFF;
+	borderColor: #AAB3B3;	/* used for edge of tab's content area, */
+	borderStyle: "solid";
+	horizontalAlign: "left";
+	horizontalGap: -1;
+	paddingTop: 4;
+	fontSize: 11;
+	paddingLeft: 3;
+	paddingRight: 3;
+}
+
+Tab
+{
+	paddingLeft: 4;
+	paddingRight: 4;
+}
+
+Button
+{
+	fontSize: 11;
+}
+
+.PopUpWindow
+{
+	cornerRadius: 5;
+	backgroundAlpha: 1;
+	backgroundColor: #DCDCDC;
+	borderAlpha: 1;
+	borderColor: #DCDCDC;
+	borderStyle: solid;
+	borderThickness: 10;
+}
+
+.PopUpWindowInset
+{
+	backgroundAlpha: 1;
+	backgroundColor: #FFFFFF;
+	paddingTop: 0;
+	paddingLeft: 0;
+	paddingRight: 0;
+	paddingBottom: 5;
+	borderColor: #696969;
+	borderStyle: solid;
+	borderThickness: 1;	
+	fontSize: 12;
+}
